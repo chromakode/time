@@ -1,0 +1,34 @@
+{
+  "name": "time",
+  "private": true,
+  "description": "emit",
+  "version": "1.0.0",
+  "license": "GPL",
+  "author": {
+    "name": "Max Goodman",
+    "email": "c@chromakode.com"
+  },
+  "scripts": {
+    "start": "webpack-dev-server --devtool inline-source-map --content-base build/",
+    "build": "webpack -p --progress"
+  },
+  "dependencies": {
+    "fcurve": "^0.0.3",
+    "gl-catmull-clark": "git://github.com/chromakode/gl-catmull-clark#3ffc46d81c9351b4b94cabddd9ea4788060d606a",
+    "gl-mat4": "^1.1.4",
+    "gl-quat": "^1.0.0",
+    "regl": "^1.3.0"
+  },
+  "devDependencies": {
+    "babel-core": "^6.24.1",
+    "babel-loader": "^7.0.0",
+    "babel-preset-es2015": "^6.24.1",
+    "css-loader": "^0.28.4",
+    "glob": "^7.1.2",
+    "less": "^2.7.2",
+    "less-loader": "^4.0.5",
+    "style-loader": "^0.18.2",
+    "webpack": "^2.6.1",
+    "webpack-dev-server": "^2.4.5"
+  }
+}
