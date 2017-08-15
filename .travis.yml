@@ -1,0 +1,25 @@
+sudo: false
+
+language: node_js
+
+node_js:
+  - "6"
+
+cache:
+  directories:
+    - $HOME/blender
+
+before_install:
+  - if [ ! -d $HOME/blender/blender-2.78c-linux-glibc219-x86_64 ]; then
+      pushd $HOME/blender;
+      wget https://download.blender.org/release/Blender2.78/blender-2.78c-linux-glibc219-x86_64.tar.bz2;
+      tar -xf blender-2.78c-linux-glibc219-x86_64.tar.bz2;
+      ln -s blender-2.78c-linux-glibc219-x86_64/blender ./;
+      popd;
+    fi
+
+script:
+  - PATH=$PATH:$HOME/blender NODE_ENV=production npm run build
+
+after_success:
+  - ./scripts/deploy.sh
