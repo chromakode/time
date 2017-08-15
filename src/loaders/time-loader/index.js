@@ -25,6 +25,7 @@ function timeLoader(blendDataText) {
     <head>
       <meta charset="utf-8">
       <title>${blendData.title}</title>
+      <link rel="icon" type="image/png" href="favicon.png" sizes="32x32">
       <style>body { overflow: hidden } nav { display: none }</style>
     </head>
     <body>
