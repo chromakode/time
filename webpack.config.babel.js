@@ -68,7 +68,7 @@ export default {
     setup: app => {
       app.use((req, res, next) => {
         // Default to .html extension (simulate GitHub pages behavior)
-        if (req.url !== '/' && !req.url.endsWith('.html') && !req.url.endsWith('.js')) {
+        if (req.url !== '/' && !/(\.html|\.js|\.png)$/.test(req.url)) {
           req.url += '.html'
         }
         next()
