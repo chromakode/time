@@ -39,7 +39,7 @@ def anim_data(thing):
     for from_name, dest_name in mappings.items():
         data[dest_name] = {'type': 'static', 'data': list(getattr(thing, from_name))}
 
-    if thing.animation_data:
+    if thing.animation_data and thing.animation_data.action:
         for name, curves in groupby(thing.animation_data.action.fcurves, lambda c: c.data_path):
             if name in mappings:
                 data[mappings[name]] = {'type': 'anim', 'data': [curve_to_json(c) for c in curves]}
