@@ -50,6 +50,7 @@ function evalAnimation(state, scene, frame) {
 
 export default function main(scene) {
   Object.freeze(scene)  // Mutation of the scene would be a bug!
+  window._time = {scene}  // For debugging
 
   const regl = reglInit()
 
