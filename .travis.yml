@@ -8,6 +8,7 @@ node_js:
 cache:
   directories:
     - $HOME/blender
+    - node_modules
 
 before_install:
   - if [ ! -d $HOME/blender/blender-2.78c-linux-glibc219-x86_64 ]; then
