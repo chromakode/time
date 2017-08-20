@@ -17,8 +17,8 @@ function timeLoader(blendDataText) {
     main(${JSON.stringify(blendData)})
   `
 
-  const prev = idx > 1 ? `<a id="prev" href="/${idx - 1}">previous</a>` : ''
-  const next = idx < this.query.last ? `<a id="next" href="/${idx + 1}">next</a>` : ''
+  const prev = idx > 1 ? `<a id="prev" href="${idx - 1}">previous</a>` : ''
+  const next = idx < this.query.last ? `<a id="next" href="${idx + 1}">next</a>` : ''
   const html = `
     <!doctype html>
     <html>
