@@ -32,7 +32,7 @@ def curve_to_json(curve):
     return {'points': json_points}
 
 
-def anim_data(thing):
+def get_anim_data(thing):
     mappings = {'location': 'loc', 'rotation_quaternion': 'rot', 'scale': 'scale'}
 
     data = {}
@@ -50,34 +50,45 @@ def anim_data(thing):
     return data
 
 
+_id = 0
+def get_obj_id(obj):
+    global _id
+    if 'time_id' not in obj:
+        _id += 1
+        obj['time_id'] = str(_id)
+    return obj['time_id']
+
+
+def get_obj_data(obj):
+    obj_data = {}
+    if obj.parent:
+        obj_data['parent'] = get_obj_id(obj.parent)
+    obj_data['id'] = get_obj_id(obj)
+    obj_data['type'] = obj.type.lower()
+    obj_data['anim'] = get_anim_data(obj)
+    return obj_data
+
+
 def main():
     scene = bpy.data.scenes[0]
-    _id = 0
 
     data = {}
     data['start'] = scene.frame_start
     data['end'] = scene.frame_end
     data['title'] = scene['title']
     data['bg'] = {'color': list(scene.world.horizon_color)}
-
-    # Bake "parent inverse matrix" into camera position so we don't need it in JS-land
-    scene.camera.matrix_local = scene.camera.matrix_parent_inverse * scene.camera.matrix_local
-    scene.camera.matrix_parent_inverse = Matrix.Identity(4)
-
-    camera_data = data['camera'] = {}
-    camera_data['id'] = str(_id)
-    _id += 1
-    camera_data['perspective'] = [s for v in scene.camera.calc_matrix_camera(1, 1).transposed() for s in v]
-    camera_data['anim'] = anim_data(scene.camera)
-    camera_data['pivot'] = {'id': _id, 'anim': anim_data(scene.camera.parent)}
-    _id += 1
-
     obj_datas = data['objs'] = []
+
+    camera_data = get_obj_data(scene.camera)
+    camera_data['perspective'] = [s for v in scene.camera.calc_matrix_camera(1, 1).transposed() for s in v]
+    obj_datas.append(camera_data)
+    data['camera'] = get_obj_id(scene.camera)
+
     for obj in scene.objects:
-        if obj.type == 'MESH':
-            obj_data = {}
-            obj_data['id'] = str(_id)
-            _id += 1
+        if obj.type == 'EMPTY':
+            obj_datas.append(get_obj_data(obj))
+        elif obj.type == 'MESH':
+            obj_data = get_obj_data(obj)
             obj_positions = obj_data['positions'] = []
             obj_cells = obj_data['cells'] = []
             obj_datas.append(obj_data)
@@ -99,8 +110,6 @@ def main():
             mat = obj_data['mat'] = {}
             mat['color'] = list(obj.material_slots[0].material.diffuse_color)
 
-            obj_data['anim'] = anim_data(obj)
-
             if obj.data.shape_keys:
                 obj_sks = obj_data['shapes'] = []
                 obj_data['anim']['shapes'] = {'type': 'anim'}
@@ -111,6 +120,18 @@ def main():
 
                     fcurve = obj.data.shape_keys.animation_data.action.fcurves[idx]
                     obj_sk_curves.append(curve_to_json(fcurve))
+
+    objs_by_id = {obj['id']: obj for obj in obj_datas}
+
+    # Sort objects so that parents are before their children
+    def parent_depth(obj_data):
+        depth = 0
+        cur = obj_data
+        while 'parent' in cur:
+            depth += 1
+            cur = objs_by_id[cur['parent']]
+        return depth
+    obj_datas.sort(key=parent_depth)
 
     json.dump(data, os.fdopen(3, 'w'))
 

@@ -6,25 +6,25 @@ import {evaluateFCurve} from 'fcurve'
 
 const animProps = ['loc', 'rot', 'scale', 'shapes']
 
-function evalThingAnimation(state, thing, frame) {
-  // Evaluate the animatable properties of a thing into matrices without creating new objects
-  let thingState = state[thing.id]
-  if (!thingState) {
-    thingState = state[thing.id] = {matrix: mat4.create()}
+// Evaluate the animatable properties of a thing into matrices without creating new objects
+function evalObjAnimation(state, obj, frame) {
+  let objState = state[obj.id]
+  if (!objState) {
+    objState = state[obj.id] = {matrix: mat4.create()}
   }
 
   for (let prop of animProps) {
-    const propAnim = thing.anim[prop]
+    const propAnim = obj.anim[prop]
     if (!propAnim) {
       continue
     }
 
     if (propAnim.type === 'static') {
-      thingState[prop] = propAnim.data
+      objState[prop] = propAnim.data
     } else if (propAnim.type === 'anim') {
-      let propState = thingState[prop]
+      let propState = objState[prop]
       if (!propState) {
-        propState = thingState[prop] = []
+        propState = objState[prop] = []
       }
       propAnim.data.forEach((fcurve, idx) => {
         propState[idx] = evaluateFCurve(fcurve, frame)
@@ -34,17 +34,29 @@ function evalThingAnimation(state, thing, frame) {
 
   // Blender-animated rotation quaternion values need to be normalized,
   // otherwise the quaternion may scale the geometry.
-  normalizeQuat(thingState.rot, thingState.rot)
+  normalizeQuat(objState.rot, objState.rot)
 
-  mat4.fromRotationTranslation(thingState.matrix, thingState.rot, thingState.loc)
-  mat4.scale(thingState.matrix, thingState.matrix, thingState.scale)
+  mat4.fromRotationTranslation(objState.matrix, objState.rot, objState.loc)
+  mat4.scale(objState.matrix, objState.matrix, objState.scale)
 }
 
-function evalAnimation(state, scene, frame) {
-  // Evaluate the animatable properties of everything in the scene
-  evalThingAnimation(state, scene.camera, frame)
-  evalThingAnimation(state, scene.camera.pivot, frame)
-  scene.objs.forEach(obj => { evalThingAnimation(state, obj, frame) })
+// Evaluate the animatable properties of everything in the scene
+function evalAnimation(state, transforms, scene, frame) {
+  // Scene objects are already ordered with parents preceding their children,
+  // so we can iterate through scene.objs in order and apply parent transforms
+  // as we go.
+  for (const obj of scene.objs) {
+    evalObjAnimation(state, obj, frame)
+
+    const objMatrix = state[obj.id].matrix
+    const transform = transforms[obj.id]
+    if (transform) {
+      mat4.multiply(objMatrix, objMatrix, transform)
+    }
+    if (obj.parent) {
+      mat4.multiply(objMatrix, state[obj.parent].matrix, objMatrix)
+    }
+  }
 }
 
 
@@ -62,7 +74,8 @@ export default function main(scene) {
     }
   `
 
-  function Mesh({positions, cells, mat: {color}, subsurf}) {
+  function Mesh({id, positions, cells, mat: {color}, subsurf}) {
+    this.id = id
     if (subsurf) {
       let {positions: subsurfPositions, cells: subsurfCells} = catmullClark(positions, cells, subsurf, true)
       this.verts = regl.buffer(subsurfPositions)
@@ -97,7 +110,8 @@ export default function main(scene) {
     elements: regl.this('cells'),
   })
 
-  function MorphMesh({positions, cells, shapes, mat: {color}, subsurf}) {
+  function MorphMesh({id, positions, cells, shapes, mat: {color}, subsurf}) {
+    this.id = id
     if (subsurf) {
       let {positions: subsurfPositions, cells: subsurfCells} = catmullClark(positions, cells, subsurf, true)
       this.verts = regl.buffer(subsurfPositions)
@@ -138,26 +152,35 @@ export default function main(scene) {
     elements: regl.this('cells'),
   })
 
-  const meshes = {}
+  const objs = {}
+  const meshes = []
   for (const obj of scene.objs) {
-    if (obj.shapes) {
-      meshes[obj.id] = new MorphMesh(obj)
-    } else {
-      meshes[obj.id] = new Mesh(obj)
+    objs[obj.id] = obj
+    if (obj.type === 'mesh') {
+      if (obj.shapes) {
+        meshes.push(new MorphMesh(obj))
+      } else {
+        meshes.push(new Mesh(obj))
+      }
     }
   }
-  const projection = scene.camera.perspective
+
+  const camera = objs[scene.camera]
+  const projection = camera.perspective
   const projectionF = projection[5]
+  const cameraPivot = objs[camera.parent]
+
   const bgColor = scene.bg.color.concat(1)
   const view = mat4.create()
+
   const animState = {}
+  const animTransforms = {
+    [cameraPivot.id]: mat4.create(),  // User camera pivot control
+  }
 
   const body = document.body
 
   function renderFrame(x, y) {
-    const frame = scene.start + y * (scene.end - scene.start)
-    evalAnimation(animState, scene, frame)
-
     // Adjust projection to match screen aspect
     // This was determined by looking at the relationships of f and aspect in:
     // https://github.com/stackgl/gl-mat4/blob/c2e2de728fe7eba592f74cd02266100cc21ec89a/perspective.js
@@ -172,29 +195,30 @@ export default function main(scene) {
       projection[5] = projectionF
     }
 
-    // Rotate pivot based on input
-    mat4.identity(view)
-    mat4.rotateX(view, view, .05 * Math.PI * (.5 - y))
-    mat4.rotateZ(view, view, .05 * Math.PI * (.5 - x))
-    mat4.multiply(view, view, animState[scene.camera.pivot.id].matrix)
+    // Adjust camera pivot transform based on position
+    const pivotMatrix = animTransforms[cameraPivot.id]
+    mat4.identity(pivotMatrix)
+    mat4.rotateX(pivotMatrix, pivotMatrix, .05 * Math.PI * (.5 - y))
+    mat4.rotateZ(pivotMatrix, pivotMatrix, .05 * Math.PI * (.5 - x))
 
-    // Position camera relative to pivot
-    mat4.multiply(view, view, animState[scene.camera.id].matrix)
+    // Evaluate object positions for frame
+    const frame = scene.start + y * (scene.end - scene.start)
+    evalAnimation(animState, animTransforms, scene, frame)
 
     // Convert camera matrix into view matrix
-    mat4.invert(view, view)
+    mat4.invert(view, animState[scene.camera].matrix)
 
     regl.clear({
       color: bgColor,
       depth: 1
     })
 
-    for (const obj of scene.objs) {
-      meshes[obj.id].draw({
-        pos: animState[obj.id].matrix,
+    for (const mesh of meshes) {
+      mesh.draw({
+        pos: animState[mesh.id].matrix,
         view,
         projection,
-        skWeight: animState[obj.id].shapes && animState[obj.id].shapes[0],
+        skWeight: animState[mesh.id].shapes && animState[mesh.id].shapes[0],
       })
     }
 
