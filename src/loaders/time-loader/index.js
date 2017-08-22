@@ -11,10 +11,10 @@ function timeLoader(blendDataText) {
   blendData.idx = idx
 
   const code = `
-    import main from '../src/loaders/time-loader/v0.js'
+    import time from '../src/v0.js'
     import initUI from '../src/ui.js'
     initUI()
-    main(${JSON.stringify(blendData)})
+    time(${JSON.stringify(blendData)}).run()
   `
 
   const prev = idx > 1 ? `<a id="prev" href="${idx - 1}">previous</a>` : ''

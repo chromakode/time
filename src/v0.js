@@ -60,11 +60,10 @@ function evalAnimation(state, transforms, scene, frame) {
 }
 
 
-export default function main(scene) {
+export default function time(scene, reglContext) {
   Object.freeze(scene)  // Mutation of the scene would be a bug!
-  window._time = {scene}  // For debugging
 
-  const regl = reglInit()
+  const regl = reglInit(reglContext)
 
   const frag = `
     precision mediump float;
@@ -178,13 +177,11 @@ export default function main(scene) {
     [cameraPivot.id]: mat4.create(),  // User camera pivot control
   }
 
-  const body = document.body
-
   function renderFrame(x, y) {
     // Adjust projection to match screen aspect
     // This was determined by looking at the relationships of f and aspect in:
     // https://github.com/stackgl/gl-mat4/blob/c2e2de728fe7eba592f74cd02266100cc21ec89a/perspective.js
-    const aspect = window.innerWidth / window.innerHeight
+    const aspect = regl._gl.drawingBufferWidth / regl._gl.drawingBufferHeight
     if (aspect >= 1) {
       // Wide view: scale up Y of frustrum
       projection[0] = projectionF
@@ -226,6 +223,9 @@ export default function main(scene) {
   }
 
   function run() {
+    const body = document.body
+    window._time = {scene}  // For debugging
+
     let x = .5
     let y = .5
 
@@ -254,5 +254,5 @@ export default function main(scene) {
     renderFrame(x, y)
   }
 
-  run()
+  return {renderFrame, run}
 }
