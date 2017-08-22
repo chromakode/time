@@ -78,7 +78,7 @@ async function render() {
       .toBuffer()
 
     // Add to GIF (slow!)
-    gif.setDelay(i === totalFrames - 1 ? PAUSE : DURATION / FRAMES)
+    gif.setDelay(i === 0 ? PAUSE : DURATION / FRAMES)
     gif.addFrame(framePixels)
 
     // This seems to help keep memory usage down.
