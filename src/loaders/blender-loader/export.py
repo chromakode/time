@@ -85,6 +85,10 @@ def main():
     data['camera'] = get_obj_id(scene.camera)
 
     for obj in scene.objects:
+        if not obj.layers[0]:
+            # Only export objects on first layer
+            continue
+
         if obj.type == 'EMPTY':
             obj_datas.append(get_obj_data(obj))
         elif obj.type == 'MESH':
