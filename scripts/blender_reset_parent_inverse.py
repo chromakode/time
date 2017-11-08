@@ -8,10 +8,10 @@ class ResetParentInverse(bpy.types.Operator):
 
     def execute(self, context):
         # via https://blender.stackexchange.com/a/28897/41041
-        obj = context.object
-        matrix_orig = obj.matrix_world.copy()
-        obj.matrix_parent_inverse.identity()
-        obj.matrix_basis = obj.parent.matrix_world.inverted() * matrix_orig
+        for obj in context.selected_objects:
+            matrix_orig = obj.matrix_world.copy()
+            obj.matrix_parent_inverse.identity()
+            obj.matrix_basis = obj.parent.matrix_world.inverted() * matrix_orig
         return {'FINISHED'}
 
 
